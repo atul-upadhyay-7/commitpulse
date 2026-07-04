@@ -18,6 +18,49 @@ import pLimit from 'p-limit';
 import logger from '@/lib/logger';
 import { decryptGitHubToken, isEncryptedToken } from '@/lib/github-token-encryption';
 
+/**
+ * Lightweight async mutex for serializing access to shared mutable state.
+ * Ensures that only one async operation holds the lock at a time, preventing
+ * race conditions on critical sections like the token pool index.
+ */
+class AsyncMutex {
+  private _queue: Array<() => void> = [];
+  private _locked = false;
+
+  async acquire(): Promise<void> {
+    if (!this._locked) {
+      this._locked = true;
+      return;
+    }
+    return new Promise<void>((resolve) => {
+      this._queue.push(resolve);
+    });
+  }
+
+  release(): void {
+    if (this._queue.length > 0) {
+      const next = this._queue.shift()!;
+      next();
+    } else {
+      this._locked = false;
+    }
+  }
+
+  async runExclusive<T>(fn: () => T | Promise<T>): Promise<T> {
+    await this.acquire();
+    try {
+      return await fn();
+    } finally {
+      this.release();
+    }
+  }
+
+  reset(): void {
+    this._queue = [];
+    this._locked = false;
+  }
+}
+
 interface GitHubRepo {
   name: string;
   stargazers_count: number;
@@ -98,6 +141,13 @@ const MAX_GRAPHQL_REPOSITORY_RESULTS = 500;
 let currentTokenIndex = 0;
 const rateLimitedTokens = new Map<string, number>();
 const tokenStats = new Map<string, { remaining: number; resetTime: number }>();
+
+/**
+ * Mutex protecting `currentTokenIndex` and related token selection state.
+ * Prevents race conditions when multiple concurrent requests select and
+ * advance through the token pool simultaneously.
+ */
+const tokenPoolMutex = new AsyncMutex();
 
 export function getTokenStatsForTests() {
   return tokenStats;
@@ -190,7 +240,7 @@ export async function fetchWithRetry(
 
   if (isGitHubRequest) {
     try {
-      currentToken = userToken || getGitHubToken();
+      currentToken = userToken || (await getGitHubToken());
       // Ensure your headers instantiation copies existing layout keys safely
       options.headers = {
         ...options.headers,
@@ -276,7 +326,9 @@ export async function fetchWithRetry(
     rateLimitedTokens.set(currentToken, Date.now() + 24 * 60 * 60 * 1000); // disable for 24h
     const tokens = getGitHubTokens();
     if (tokens.length > 1) {
-      currentTokenIndex = (currentTokenIndex + 1) % tokens.length;
+      await tokenPoolMutex.runExclusive(() => {
+        currentTokenIndex = (currentTokenIndex + 1) % tokens.length;
+      });
     }
     // Retry immediately with the next token if available
     if (attempt < MAX_RETRIES && tokens.length > 1) {
@@ -305,7 +357,9 @@ export async function fetchWithRetry(
       tokenStats.set(currentToken, { remaining: 0, resetTime });
       const tokens = getGitHubTokens();
       if (tokens.length > 1) {
-        currentTokenIndex = (currentTokenIndex + 1) % tokens.length;
+        await tokenPoolMutex.runExclusive(() => {
+          currentTokenIndex = (currentTokenIndex + 1) % tokens.length;
+        });
       }
     }
 
@@ -632,9 +686,10 @@ export function clearGitHubApiCacheForTests(): void {
   tokenStats.clear();
   currentTokenIndex = 0;
   globalCircuitBreakerOpenUntil = 0;
+  tokenPoolMutex.reset();
 }
 
-function getGitHubToken(): string {
+function getGitHubTokenSync(): string {
   const tokens = getGitHubTokens();
   const MISSING_GITHUB_TOKEN_MESSAGE = 'GitHub token is missing. Set GITHUB_PAT or GITHUB_TOKEN.';
   if (tokens.length === 0) {
@@ -690,12 +745,13 @@ function getGitHubToken(): string {
         }
       }
       if (bestTokenIndex !== -1) {
-        currentTokenIndex = bestTokenIndex;
+        currentTokenIndex = (bestTokenIndex + 1) % tokens.length;
         return bestToken;
       }
     } else {
       // All active tokens have known stats: pick the one with the highest remaining quota
       let maxRemaining = -1;
+      let bestToken = '';
       let bestIndex = -1;
       for (const token of activeTokens) {
         const stats = tokenStats.get(token)!;
@@ -706,7 +762,7 @@ function getGitHubToken(): string {
         }
       }
       if (bestIndex !== -1) {
-        currentTokenIndex = bestIndex;
+        currentTokenIndex = (bestIndex + 1) % tokens.length;
         return bestToken;
       }
     }
@@ -735,8 +791,16 @@ function getGitHubToken(): string {
   throw new RateLimitError('API Rate Limit Exceeded', backoffMs);
 }
 
-const getHeaders = (userToken?: string) => ({
-  Authorization: `bearer ${userToken || getGitHubToken()}`,
+/**
+ * Thread-safe wrapper around getGitHubTokenSync() that uses the token pool mutex
+ * to prevent race conditions during token selection and index advancement.
+ */
+async function getGitHubToken(): Promise<string> {
+  return tokenPoolMutex.runExclusive(() => getGitHubTokenSync());
+}
+
+const getHeaders = async (userToken?: string) => ({
+  Authorization: `bearer ${userToken || (await getGitHubToken())}`,
   'Content-Type': 'application/json',
 });
 
@@ -986,7 +1050,7 @@ async function fetchContributionsUncached(
     GITHUB_GRAPHQL_URL,
     {
       method: 'POST',
-      headers: getHeaders(options.token),
+      headers: await getHeaders(options.token),
       body: JSON.stringify({
         query,
         variables: { login: username, from: options.from, to: options.to },
@@ -1164,7 +1228,7 @@ async function fetchProfileUncached(
   const res = await fetchWithRetry(
     `${GITHUB_REST_URL}/users/${encodedUsername}`,
     {
-      headers: getHeaders(options.token),
+      headers: await getHeaders(options.token),
       cache: 'no-store',
       signal: options.signal,
     },
@@ -1248,7 +1312,7 @@ async function fetchReposUncached(
   const firstPageRes = await fetchWithRetry(
     `${GITHUB_REST_URL}/users/${encodedUsername}/repos?per_page=100&page=1&sort=pushed`,
     {
-      headers: getHeaders(options.token),
+      headers: await getHeaders(options.token),
       cache: 'no-store',
       signal: options.signal,
     },
@@ -1270,12 +1334,13 @@ async function fetchReposUncached(
   if (firstPageRepos.length === 100) {
     const remainingPages = Array.from({ length: MAX_PAGES - 1 }, (_, i) => i + 2);
 
+    const headers = await getHeaders(options.token);
     const responses = await Promise.all(
       remainingPages.map((page) =>
         fetchWithRetry(
           `${GITHUB_REST_URL}/users/${encodedUsername}/repos?per_page=100&page=${page}&sort=pushed`,
           {
-            headers: getHeaders(options.token),
+            headers,
             cache: 'no-store',
             signal: options.signal,
           },
@@ -1322,7 +1387,7 @@ export async function fetchOrgMembers(orgName: string, userToken?: string): Prom
     const res = await fetchWithRetry(
       `${GITHUB_REST_URL}/orgs/${encodedOrgName}/members?per_page=${perPage}&page=${page}`,
       {
-        headers: getHeaders(userToken),
+        headers: await getHeaders(userToken),
         cache: 'no-store',
       }
     );
@@ -1629,7 +1694,7 @@ export async function fetchContributedRepos(
         GITHUB_GRAPHQL_URL,
         {
           method: 'POST',
-          headers: getHeaders(options.token),
+          headers: await getHeaders(options.token),
           body: JSON.stringify({
             query,
             variables: { login: username, after },
@@ -1861,7 +1926,7 @@ export async function fetchPinnedRepos(username: string, token?: string): Promis
       GITHUB_GRAPHQL_URL,
       {
         method: 'POST',
-        headers: getHeaders(token),
+        headers: await getHeaders(token),
         body: JSON.stringify({ query, variables: { login: username } }),
         cache: 'no-store',
       },
@@ -1903,7 +1968,7 @@ async function fetchPopularRepos(username: string, token?: string): Promise<Popu
       GITHUB_GRAPHQL_URL,
       {
         method: 'POST',
-        headers: getHeaders(token),
+        headers: await getHeaders(token),
         body: JSON.stringify({ query, variables: { login: username } }),
         cache: 'no-store',
       },
@@ -1945,7 +2010,7 @@ async function fetchStarredRepos(username: string, token?: string): Promise<Popu
       GITHUB_GRAPHQL_URL,
       {
         method: 'POST',
-        headers: getHeaders(token),
+        headers: await getHeaders(token),
         body: JSON.stringify({ query, variables: { login: username } }),
         cache: 'no-store',
       },
@@ -2008,7 +2073,7 @@ async function fetchLatestWorkflowRun(
     const res = await fetchWithRetry(
       `${GITHUB_REST_URL}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/runs?per_page=1`,
       {
-        headers: getHeaders(token),
+        headers: await getHeaders(token),
         cache: 'no-store',
       },
       0,
@@ -2037,7 +2102,7 @@ async function fetchLatestDeployment(
     const res = await fetchWithRetry(
       `${GITHUB_REST_URL}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/deployments?per_page=1&environment=production`,
       {
-        headers: getHeaders(token),
+        headers: await getHeaders(token),
         cache: 'no-store',
       },
       0,
@@ -2052,7 +2117,7 @@ async function fetchLatestDeployment(
     const statusRes = await fetchWithRetry(
       `${GITHUB_REST_URL}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/deployments/${deployment.id}/statuses?per_page=1`,
       {
-        headers: getHeaders(token),
+        headers: await getHeaders(token),
         cache: 'no-store',
       },
       0,
@@ -2623,7 +2688,7 @@ export async function fetchCommitHourDistribution(
       GITHUB_GRAPHQL_URL,
       {
         method: 'POST',
-        headers: getHeaders(token),
+        headers: await getHeaders(token),
         body: JSON.stringify({ query, variables: { login: username } }),
         cache: 'no-store',
       },
@@ -2670,7 +2735,7 @@ export async function fetchCommitHourDistribution(
         GITHUB_GRAPHQL_URL,
         {
           method: 'POST',
-          headers: getHeaders(token),
+          headers: await getHeaders(token),
           body: JSON.stringify({ query: commitQuery, variables: { owner, name } }),
           cache: 'no-store',
         },
