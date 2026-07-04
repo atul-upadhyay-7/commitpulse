@@ -1594,7 +1594,8 @@ describe('GitHub API cache behavior', () => {
       fetchGitHubContributions('octocat'),
     ];
 
-    await Promise.resolve();
+    // Flush all pending microtasks to allow async getHeaders() and getGitHubToken() to resolve
+    await vi.advanceTimersByTimeAsync(0);
 
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(resolveFetchSpy).not.toHaveBeenCalled();
