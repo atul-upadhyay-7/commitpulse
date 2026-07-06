@@ -9,9 +9,6 @@ export function validateCSRF(request: Request): Response | null {
 
   const allowedOrigin = process.env.NEXT_PUBLIC_SITE_URL || 'https://commitpulse.vercel.app';
 
-  // Allow server-to-server / tests
-  if (!origin && !referer) return null;
-
   const isValidOrigin = (value: string | null) => {
     if (!value) return false;
 
