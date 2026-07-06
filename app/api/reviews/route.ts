@@ -7,10 +7,40 @@ import { DistributedCache } from '@/lib/cache';
 
 import { getRateLimitHeaders, notifyRateLimiter } from '@/lib/rate-limit';
 import { validateCSRF } from '@/lib/security/csrf';
+import { requireAdmin } from '@/lib/admin-auth';
 
 // Per-IP cooldown: one submission per 10 minutes to prevent spam
 const reviewWriteCache = new DistributedCache<number>(5000, 60000);
 const REVIEW_WRITE_COOLDOWN_MS = 10 * 60 * 1000;
+
+// ─── GET /api/reviews ────────────────────────────────────────────────────────
+// Public: returns approved reviews for the Wall of Love
+// Admin: returns all reviews (pending + approved) for management
+export async function GET(request: Request) {
+  if (!process.env.MONGODB_URI) {
+    return NextResponse.json({ reviews: [] });
+  }
+
+  await dbConnect();
+
+  const { searchParams } = new URL(request.url);
+  const status = searchParams.get('status'); // "pending" | "approved" | null (all, admin only)
+
+  // Admin endpoint: returns all reviews with optional status filter
+  if (status === 'pending' || status === 'all') {
+    const { session, error } = await requireAdmin();
+    if (error) return error;
+
+    const filter = status === 'pending' ? { approved: false } : {};
+    const reviews = await Review.find(filter).sort({ createdAt: -1 }).limit(100).lean();
+    return NextResponse.json({ reviews, admin: true });
+  }
+
+  // Public: only approved reviews
+  const reviews = await Review.find({ approved: true }).sort({ createdAt: -1 }).limit(50).lean();
+
+  return NextResponse.json({ reviews });
+}
 
 // ─── POST /api/reviews ────────────────────────────────────────────────────────
 // Submit a testimonial review for the Wall of Love

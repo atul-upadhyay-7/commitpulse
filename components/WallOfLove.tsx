@@ -481,6 +481,48 @@ export function WallOfLove() {
   const row2Ref = useRef<HTMLDivElement>(null);
   const statsRef = useRef<HTMLDivElement>(null);
 
+  const [dbReviews, setDbReviews] = useState<Testimonial[]>([]);
+
+  // Fetch approved reviews from the database
+  useEffect(() => {
+    fetch('/api/reviews')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.reviews?.length) {
+          const mapped: Testimonial[] = data.reviews.map(
+            (r: {
+              name: string;
+              handle: string;
+              message: string;
+              platform: string;
+              accentColor: string;
+            }) => ({
+              name: r.name,
+              handle: r.handle.startsWith('@') ? r.handle : `@${r.handle}`,
+              avatar: `https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(r.name)}&backgroundColor=c0aede`,
+              message: r.message,
+              platform: r.platform as 'twitter' | 'github',
+              accentColor: r.accentColor || '#10b981',
+            })
+          );
+          setDbReviews(mapped);
+        }
+      })
+      .catch(() => {
+        // Silently fail — fall back to hardcoded testimonials
+      });
+  }, []);
+
+  // Merge DB reviews with hardcoded: DB reviews go first, then fill with hardcoded
+  const allRow1 =
+    dbReviews.length > 0
+      ? [...dbReviews.slice(0, 6), ...TESTIMONIALS_ROW_1].slice(0, 12)
+      : TESTIMONIALS_ROW_1;
+  const allRow2 =
+    dbReviews.length > 6
+      ? [...dbReviews.slice(6, 12), ...TESTIMONIALS_ROW_2].slice(0, 12)
+      : TESTIMONIALS_ROW_2;
+
   /* ── GSAP scroll-triggered entrance animations ── */
   useEffect(() => {
     if (
@@ -614,10 +656,10 @@ export function WallOfLove() {
       {/* ── Marquee Rows ── */}
       <div className="space-y-5">
         <div ref={row1Ref} style={{ opacity: 0 }}>
-          <MarqueeRow testimonials={TESTIMONIALS_ROW_1} direction="left" speed={40} />
+          <MarqueeRow testimonials={allRow1} direction="left" speed={40} />
         </div>
         <div ref={row2Ref} style={{ opacity: 0 }}>
-          <MarqueeRow testimonials={TESTIMONIALS_ROW_2} direction="right" speed={45} />
+          <MarqueeRow testimonials={allRow2} direction="right" speed={45} />
         </div>
       </div>
 

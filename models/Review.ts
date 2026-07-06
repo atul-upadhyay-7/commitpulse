@@ -8,6 +8,7 @@ export interface IReview extends Document {
   accentColor: string;
   approved: boolean;
   createdAt: Date;
+  expiresAt: Date;
 }
 
 const ReviewSchema: Schema = new Schema({
@@ -48,6 +49,11 @@ const ReviewSchema: Schema = new Schema({
   createdAt: {
     type: Date,
     default: Date.now,
+  },
+  expiresAt: {
+    type: Date,
+    default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+    index: { expireAfterSeconds: 0 }, // TTL index: auto-delete after expiresAt
   },
 });
 
