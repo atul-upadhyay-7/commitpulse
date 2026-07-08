@@ -61,7 +61,6 @@ class AsyncMutex {
   }
 }
 
-interface GitHubRepo {
 export interface GitHubRepo {
   name: string;
   stargazers_count: number;
@@ -771,7 +770,7 @@ function getGitHubTokenSync(): string {
         }
       }
       if (bestTokenIndex !== -1) {
-        currentTokenIndex = (bestTokenIndex + 1) % tokens.length;
+        currentTokenIndex = bestTokenIndex;
         return bestToken;
       }
     } else {
@@ -788,7 +787,7 @@ function getGitHubTokenSync(): string {
         }
       }
       if (bestIndex !== -1) {
-        currentTokenIndex = (bestIndex + 1) % tokens.length;
+        currentTokenIndex = bestIndex;
         return bestToken;
       }
     }
@@ -827,6 +826,10 @@ async function getGitHubToken(): Promise<string> {
 
 const getHeaders = async (userToken?: string) => ({
   Authorization: `bearer ${userToken || (await getGitHubToken())}`,
+  'Content-Type': 'application/json',
+});
+
+/**
  * Issue #7213: Handles token expiration with a per-token pending refresh promise pattern.
  * When multiple concurrent requests detect an expired token, only one triggers
  * the rotation; subsequent requests await the same in-flight promise.
@@ -858,11 +861,6 @@ export async function handleTokenExpiration(token: string): Promise<void> {
     pendingRefreshPromises.delete(token);
   }
 }
-
-const getHeaders = (userToken?: string) => ({
-  Authorization: `bearer ${userToken || getGitHubToken()}`,
-  'Content-Type': 'application/json',
-});
 
 export function displayName(profile: GitHubUserProfile): string {
   if (typeof profile.name === 'string' && profile.name.trim() !== '') return profile.name;
@@ -2856,7 +2854,7 @@ export async function fetchRepoDetails(
     const res = await fetchWithRetry(
       `${GITHUB_REST_URL}/repos/${encodedUsername}/${encodedRepo}`,
       {
-        headers: getHeaders(options.token),
+        headers: await getHeaders(options.token),
         cache: 'no-store',
         signal: options.signal,
       },
@@ -2879,7 +2877,7 @@ export async function fetchRepoDetails(
       const partsRes = await fetchWithRetry(
         `${GITHUB_REST_URL}/repos/${encodedUsername}/${encodedRepo}/stats/participation`,
         {
-          headers: getHeaders(options.token),
+          headers: await getHeaders(options.token),
           cache: 'no-store',
           signal: options.signal,
         },
