@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limit';
 import { getClientIp } from '@/utils/getClientIp';
 import { logger } from '@/lib/logger';
+import { parseWebhookEvent, cacheEvent, evaluateAlerts } from '@/services/github/webhook-handler';
 
 const MAX_PAYLOAD_SIZE = 1024 * 1024; // 1MB
 const SIGNATURE_PREFIX = 'sha256=';
@@ -112,15 +113,49 @@ export async function POST(req: Request) {
   }
 
   // Valid payload, proceed...
+  let payload;
   try {
-    JSON.parse(bodyText);
+    payload = JSON.parse(bodyText);
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  // Handle payload...
-  return NextResponse.json(
-    { success: true, message: 'Webhook received securely' },
-    { status: 200 }
-  );
+  // Process the webhook event
+  try {
+    const event = parseWebhookEvent(payload);
+
+    if (event) {
+      // Cache the event for analytics
+      await cacheEvent(event);
+
+      // Evaluate and send alerts if configured
+      await evaluateAlerts(event);
+
+      logger.info('Webhook event processed successfully', {
+        route: '/api/webhook',
+        eventType: event.type,
+        repository: event.repository,
+        status: event.status,
+      });
+    } else {
+      logger.info('Webhook received but no extractable event found', {
+        route: '/api/webhook',
+        action: payload.action,
+        hasWorkflowRun: !!payload.workflow_run,
+        hasCheckRun: !!payload.check_run,
+      });
+    }
+
+    return NextResponse.json(
+      { success: true, message: 'Webhook received and processed' },
+      { status: 200 }
+    );
+  } catch (error) {
+    logger.error('Failed to process webhook event', {
+      route: '/api/webhook',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+
+    return NextResponse.json({ error: 'Failed to process webhook event' }, { status: 500 });
+  }
 }
