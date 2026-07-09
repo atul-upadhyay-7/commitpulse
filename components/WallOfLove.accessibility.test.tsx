@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { vi, beforeEach } from 'vitest';
 
 vi.mock('gsap', () => ({
   default: {
@@ -26,6 +26,11 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { WallOfLove } from './WallOfLove';
+
+beforeEach(() => {
+  globalThis.fetch = vi.fn(() => Promise.resolve(Response.json({ reviews: [] })));
+});
+
 describe('WallOfLove accessibility', () => {
   it('renders the main heading', () => {
     render(<WallOfLove />);

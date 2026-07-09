@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { WallOfLove } from './WallOfLove';
 
 vi.mock('gsap', () => {
@@ -34,6 +34,10 @@ vi.mock('framer-motion', () => ({
   },
   useReducedMotion: () => false,
 }));
+
+beforeEach(() => {
+  globalThis.fetch = vi.fn(() => Promise.resolve(Response.json({ reviews: [] })));
+});
 
 describe('WallOfLove Theme Contrast', () => {
   it('renders Wall Of Love heading', () => {

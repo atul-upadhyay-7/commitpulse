@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { WallOfLove } from './WallOfLove';
 
 vi.mock('framer-motion', () => ({
@@ -30,6 +30,10 @@ vi.mock('gsap', () => ({
 vi.mock('gsap/ScrollTrigger', () => ({
   ScrollTrigger: {},
 }));
+
+beforeEach(() => {
+  globalThis.fetch = vi.fn(() => Promise.resolve(Response.json({ reviews: [] })));
+});
 
 describe('WallOfLove mock integrations', () => {
   it('registers ScrollTrigger plugin through gsap', () => {

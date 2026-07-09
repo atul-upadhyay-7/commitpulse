@@ -6,7 +6,7 @@ import { requireAdmin } from '@/lib/admin-auth';
 // ─── PATCH /api/reviews/[id] ─────────────────────────────────────────────────
 // Approve or reject a review (admin-only)
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { session, error } = await requireAdmin();
+  const { error } = await requireAdmin();
   if (error) return error;
 
   const { id } = await params;
@@ -54,7 +54,7 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { session, error } = await requireAdmin();
+  const { error } = await requireAdmin();
   if (error) return error;
 
   const { id } = await params;

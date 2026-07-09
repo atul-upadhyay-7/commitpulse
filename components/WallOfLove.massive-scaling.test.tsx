@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { describe, expect, it, vi, beforeAll } from 'vitest';
+import { describe, expect, it, vi, beforeAll, beforeEach } from 'vitest';
 import { WallOfLove } from './WallOfLove';
 
 /* ─────────────────────────────────────────────────────────
@@ -40,6 +40,10 @@ vi.mock('gsap', () => {
 vi.mock('gsap/ScrollTrigger', () => ({
   ScrollTrigger: {},
 }));
+
+beforeEach(() => {
+  globalThis.fetch = vi.fn(() => Promise.resolve(Response.json({ reviews: [] })));
+});
 
 /* ─────────────────────────────────────────────────────────
    IntersectionObserver stub (not available in jsdom)

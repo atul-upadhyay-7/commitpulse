@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 
   // Admin endpoint: returns all reviews with optional status filter
   if (status === 'pending' || status === 'all') {
-    const { session, error } = await requireAdmin();
+    const { error } = await requireAdmin();
     if (error) return error;
 
     const filter = status === 'pending' ? { approved: false } : {};

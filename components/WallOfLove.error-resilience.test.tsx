@@ -24,6 +24,10 @@ vi.mock('gsap/ScrollTrigger', () => ({
   ScrollTrigger: {},
 }));
 
+beforeEach(() => {
+  globalThis.fetch = vi.fn(() => Promise.resolve(Response.json({ reviews: [] })));
+});
+
 if (typeof window !== 'undefined') {
   Object.defineProperty(window, 'matchMedia', {
     writable: true,

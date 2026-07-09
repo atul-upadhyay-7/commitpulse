@@ -52,6 +52,10 @@ vi.mock('gsap/ScrollTrigger', () => ({
   ScrollTrigger: {},
 }));
 
+beforeEach(() => {
+  globalThis.fetch = vi.fn(() => Promise.resolve(Response.json({ reviews: [] })));
+});
+
 describe('WallOfLove - Responsive Multi-device Columns & Mobile Viewport Layouts', () => {
   let originalInnerWidth: number;
 

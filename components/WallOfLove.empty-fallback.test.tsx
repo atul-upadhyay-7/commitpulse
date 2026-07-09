@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 vi.mock('gsap', () => ({
   default: {
@@ -37,6 +37,10 @@ vi.mock('next/link', () => ({
 
 import { WallOfLove } from './WallOfLove';
 import '@testing-library/jest-dom/vitest';
+
+beforeEach(() => {
+  globalThis.fetch = vi.fn(() => Promise.resolve(Response.json({ reviews: [] })));
+});
 
 describe('WallOfLove Empty / Missing Inputs Verification', () => {
   it('renders the Wall of Love heading without external data dependencies', () => {
