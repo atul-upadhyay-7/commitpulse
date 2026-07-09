@@ -56,6 +56,7 @@ const makeRequest = (
   return new NextRequest(url, {
     method,
     headers: {
+      origin: 'https://commitpulse.vercel.app',
       'x-forwarded-for': '127.0.0.1',
       Authorization: 'Bearer test-owner-token',
       ...headers,
@@ -125,7 +126,11 @@ describe('POST /api/notify', () => {
     const url = 'http://localhost:3000/api/notify';
     const req = new NextRequest(url, {
       method: 'POST',
-      headers: { 'x-forwarded-for': '127.0.0.1', 'content-type': 'application/json' },
+      headers: {
+        origin: 'https://commitpulse.vercel.app',
+        'x-forwarded-for': '127.0.0.1',
+        'content-type': 'application/json',
+      },
       body: 'not-json',
     });
     const res = await POST(req);

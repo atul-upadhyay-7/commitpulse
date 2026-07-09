@@ -18,7 +18,7 @@ vi.mock('@/services/security/track-user-protection', () => ({
 const makeRequest = (body: unknown) =>
   new Request('http://localhost/api/track-user', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', origin: 'https://commitpulse.vercel.app' },
     body: JSON.stringify(body),
   });
 
@@ -55,7 +55,7 @@ describe('track-user route — Edge Cases & Empty/Missing Inputs', () => {
   it('returns 400 when body is malformed JSON', async () => {
     const req = new Request('http://localhost/api/track-user', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', origin: 'https://commitpulse.vercel.app' },
       body: 'not-json',
     });
     const res = await POST(req);

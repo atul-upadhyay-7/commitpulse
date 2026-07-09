@@ -152,6 +152,7 @@ function createInteractiveNotifyTrigger() {
   trigger.addEventListener('click', async () => {
     const req = new Request('http://localhost/api/notify', {
       method: 'POST',
+      headers: { origin: 'https://commitpulse.vercel.app' },
       body: JSON.stringify({
         username: 'octocat',
         email: 'octocat@example.com',

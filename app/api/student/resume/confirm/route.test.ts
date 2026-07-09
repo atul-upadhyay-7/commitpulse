@@ -48,6 +48,7 @@ function makeRequest(body: string | Record<string, unknown>): Request {
     headers: {
       'Content-Type': 'application/json',
       Authorization: 'Bearer test-owner-token',
+      origin: 'https://commitpulse.vercel.app',
     },
     body: typeof body === 'string' ? body : JSON.stringify(body),
   });

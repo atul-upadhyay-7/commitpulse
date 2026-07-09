@@ -39,7 +39,10 @@ import { notifyRateLimiter } from '@/lib/rate-limit';
 import { verifyGitHubOwner } from '@/lib/github-owner-verification';
 
 function makeRequest(query: string): NextRequest {
-  return new NextRequest(`http://localhost/api/notify?${query}`, { method: 'DELETE' });
+  return new NextRequest(`http://localhost/api/notify?${query}`, {
+    method: 'DELETE',
+    headers: { origin: 'https://commitpulse.vercel.app' },
+  });
 }
 
 describe('DELETE /api/notify', () => {

@@ -49,7 +49,11 @@ import { gitHubUserValidator } from '@/services/github/validate-user';
 function makeRequest(body: Record<string, unknown>, headers?: HeadersInit): Request {
   return new Request('http://localhost/api/track-user', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
+    headers: {
+      'Content-Type': 'application/json',
+      origin: 'https://commitpulse.vercel.app',
+      ...headers,
+    },
     body: JSON.stringify(body),
   });
 }
@@ -126,9 +130,11 @@ describe('POST /api/track-user', () => {
 
   describe('Validation Basic Checks', () => {
     it('returns 400 for malformed JSON request bodies', async () => {
+      const malformedHeaders = new Headers();
+      malformedHeaders.set('origin', 'https://commitpulse.vercel.app');
       const malformedRequest = {
         json: vi.fn().mockRejectedValue(new SyntaxError('Unexpected token')),
-        headers: new Headers(),
+        headers: malformedHeaders,
       } as unknown as Request;
 
       const response = await POST(malformedRequest);

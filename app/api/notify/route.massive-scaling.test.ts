@@ -44,6 +44,7 @@ const makeRequest = (method: string, body?: object, search?: string, ip?: string
   return new NextRequest(url, {
     method,
     headers: {
+      origin: 'https://commitpulse.vercel.app',
       'x-forwarded-for': ip || '127.0.0.1',
       Authorization: 'Bearer test-owner-token',
     },

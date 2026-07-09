@@ -75,8 +75,10 @@ function buildBuffer(magic: Uint8Array<ArrayBuffer>, totalBytes: number): Uint8A
 function makeUploadRequest(file: File): Request {
   const form = new FormData();
   form.append('resume', file);
+  const headers = new Headers();
+  headers.set('origin', 'https://commitpulse.vercel.app');
   return {
-    headers: new Headers(),
+    headers,
     formData: async () => form,
   } as unknown as Request;
 }

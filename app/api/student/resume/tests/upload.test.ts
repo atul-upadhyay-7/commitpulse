@@ -37,16 +37,20 @@ function makeUploadRequest(content: string | number[], type: string, name = 'res
   const form = new FormData();
   form.append('resume', file);
 
+  const headers = new Headers();
+  headers.set('origin', 'https://commitpulse.vercel.app');
   return {
-    headers: new Headers(),
+    headers,
     formData: async () => form,
   } as unknown as Request;
 }
 
 function makeEmptyUploadRequest(): Request {
   const form = new FormData();
+  const headers = new Headers();
+  headers.set('origin', 'https://commitpulse.vercel.app');
   return {
-    headers: new Headers(),
+    headers,
     formData: async () => form,
   } as unknown as Request;
 }
@@ -100,8 +104,10 @@ describe('POST /api/student/resume/upload', () => {
     const form = new FormData();
     form.append('resume', largeFile);
 
+    const requestHeaders = new Headers();
+    requestHeaders.set('origin', 'https://commitpulse.vercel.app');
     const request = {
-      headers: new Headers(),
+      headers: requestHeaders,
       formData: async () => form,
     } as unknown as Request;
 

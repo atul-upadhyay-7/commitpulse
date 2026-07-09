@@ -65,7 +65,7 @@ const findOneAndUpdateMock = vi.mocked(Notification.findOneAndUpdate);
 const makeRequest = (body: unknown) =>
   new Request('http://localhost/api/notify', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', origin: 'https://commitpulse.vercel.app' },
     body: JSON.stringify(body),
   });
 

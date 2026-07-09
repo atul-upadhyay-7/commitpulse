@@ -26,8 +26,10 @@ vi.mock('@/utils/getClientIp', () => ({
 }));
 
 function makeRequest(formDataFn: () => Promise<FormData> | FormData): Request {
+  const headers = new Headers();
+  headers.set('origin', 'https://commitpulse.vercel.app');
   return {
-    headers: new Headers(),
+    headers,
     formData: async () => formDataFn(),
   } as unknown as Request;
 }
@@ -81,8 +83,10 @@ describe('POST /api/student/resume/upload - Edge Cases & Empty/Missing Inputs Ve
   });
 
   it('returns 400 when formData() throws due to malformed body', async () => {
+    const reqHeaders = new Headers();
+    reqHeaders.set('origin', 'https://commitpulse.vercel.app');
     const req = {
-      headers: new Headers(),
+      headers: reqHeaders,
       formData: async () => {
         throw new Error('Malformed multipart body');
       },

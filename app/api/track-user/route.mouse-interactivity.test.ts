@@ -53,6 +53,7 @@ describe('ApiTrack-userRoute Mouse Interactivity & Touch Events (Backend Metapho
 
     const request = new Request('https://commitpulse.com/api/track-user', {
       method: 'POST',
+      headers: { origin: 'https://commitpulse.vercel.app' },
       body: JSON.stringify({ username: 'validuser' }),
     });
 
@@ -76,6 +77,7 @@ describe('ApiTrack-userRoute Mouse Interactivity & Touch Events (Backend Metapho
 
     const request = new Request('https://commitpulse.com/api/track-user', {
       method: 'POST',
+      headers: { origin: 'https://commitpulse.vercel.app' },
       body: JSON.stringify({ username: 'validuser' }),
     });
 
@@ -96,6 +98,7 @@ describe('ApiTrack-userRoute Mouse Interactivity & Touch Events (Backend Metapho
 
     const request = new Request('https://commitpulse.com/api/track-user', {
       method: 'POST',
+      headers: { origin: 'https://commitpulse.vercel.app' },
       body: 'invalid-json',
     });
 
@@ -120,6 +123,7 @@ describe('ApiTrack-userRoute Mouse Interactivity & Touch Events (Backend Metapho
 
     const request = new Request('https://commitpulse.com/api/track-user', {
       method: 'POST',
+      headers: { origin: 'https://commitpulse.vercel.app' },
       body: JSON.stringify({ username: 'validuser' }),
     });
 
@@ -144,6 +148,7 @@ describe('ApiTrack-userRoute Mouse Interactivity & Touch Events (Backend Metapho
 
     const request = new Request('https://commitpulse.com/api/track-user', {
       method: 'POST',
+      headers: { origin: 'https://commitpulse.vercel.app' },
       body: JSON.stringify({ username: 'validuser' }),
     });
 
