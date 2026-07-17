@@ -169,7 +169,11 @@ export default function NavbarSearch({ variant = 'desktop', onNavigate }: Navbar
 
       {/* Desktop Search Panel */}
       {variant === 'desktop' && open && (
-        <div className="absolute right-0 top-full mt-2 z-50 w-80 sm:w-[450px] md:w-[520px] rounded-2xl border border-black/10 bg-white/95 p-3 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-[#0a0a0a]/95 animate-in fade-in slide-in-from-top-2 duration-200">
+        <div
+          role="search"
+          aria-label="Site search panel"
+          className="absolute right-0 top-full z-50 mt-2 box-border max-h-[calc(100vh-6rem)] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-2xl border border-black/10 bg-white/95 p-3 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-[#0a0a0a]/95 w-80 sm:w-[450px] md:w-[520px] animate-in fade-in slide-in-from-top-2 duration-200"
+        >
           {/* Search Input inside the dropdown */}
           <div className="relative flex items-center rounded-xl border border-black/10 bg-black/5 px-3 dark:border-white/15 dark:bg-white/5">
             <Search size={16} className="flex-shrink-0 text-gray-400 dark:text-gray-500" />

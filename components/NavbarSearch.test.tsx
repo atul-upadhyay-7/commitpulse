@@ -14,6 +14,16 @@ describe('NavbarSearch (desktop)', () => {
     expect(screen.getByLabelText('Search domains')).toBeTruthy();
   });
 
+  it('constrains the desktop panel to the viewport', () => {
+    render(<NavbarSearch />);
+    fireEvent.click(screen.getByLabelText('Search domains'));
+
+    const panel = screen.getByRole('search', { name: 'Site search panel' });
+    expect(panel.className).toContain('max-w-[calc(100vw-2rem)]');
+    expect(panel.className).toContain('max-h-[calc(100vh-6rem)]');
+    expect(panel.className).toContain('overflow-y-auto');
+  });
+
   it('expands and shows results when typing a matching query', async () => {
     render(<NavbarSearch />);
     const trigger = screen.getByLabelText('Search domains');
