@@ -1,15 +1,18 @@
 import 'server-only';
 import crypto from 'crypto';
 
+import bcrypt from 'bcryptjs';
+
 const TOKEN_BYTES = 32;
 const TOKEN_PREFIX = 'cpn';
+const BCRYPT_COST = 12;
 
 export function createNotificationManagementToken(): string {
   return `${TOKEN_PREFIX}_${crypto.randomBytes(TOKEN_BYTES).toString('base64url')}`;
 }
 
 export function hashNotificationManagementToken(token: string): string {
-  return crypto.createHash('sha256').update(token, 'utf8').digest('hex');
+  return bcrypt.hashSync(token, BCRYPT_COST);
 }
 
 export function getNotificationManagementToken(
@@ -31,13 +34,9 @@ export function verifyNotificationManagementToken(
   providedToken: string | null,
   storedHash?: string | null
 ): boolean {
-  if (!providedToken || !storedHash || !/^[a-f0-9]{64}$/i.test(storedHash)) {
+  if (!providedToken || !storedHash) {
     return false;
   }
 
-  const providedHash = hashNotificationManagementToken(providedToken);
-  const stored = Buffer.from(storedHash, 'hex');
-  const provided = Buffer.from(providedHash, 'hex');
-
-  return stored.length === provided.length && crypto.timingSafeEqual(stored, provided);
+  return bcrypt.compareSync(providedToken, storedHash);
 }
